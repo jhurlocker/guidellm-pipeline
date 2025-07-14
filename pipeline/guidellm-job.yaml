@@ -1,0 +1,91 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: run-guidellm
+spec:
+  template:
+    spec:
+      containers:
+      - name: guidellm
+        image: quay.io/rhoai-genaiops/guidellm:v1
+        imagePullPolicy: Always
+        command: ["guidellm"]
+        args:
+        - "benchmark"
+        - "--target=$(TARGET)"
+        - "--model=$(MODEL_NAME)"
+        - "--processor=$(PROCESSOR)"
+        - "--data=$(DATA_CONFIG)"
+        - "--output-path=/output/$(OUTPUT_FILENAME)"
+        - "--rate-type=$(RATE_TYPE)"
+        - "--max-seconds=$(MAX_SECONDS)"
+        env:
+        - name: TARGET
+          value: "http://llama32-3b.llama-serve.svc.cluster.local:8000/v1"
+        - name: MODEL_NAME
+          value: "llama32"
+        - name: PROCESSOR
+          value: "RedHatAI/Llama-3.2-3B-Instruct-quantized.w8a8"
+        - name: DATA_CONFIG
+          value: "{\"type\":\"emulated\",\"prompt_tokens\":512,\"output_tokens\":128}"
+        - name: OUTPUT_FILENAME
+          value: "llama32-3b.yaml"
+        - name: RATE_TYPE
+          value: "synchronous"
+        - name: MAX_SECONDS
+          value: "1800"
+        volumeMounts:
+        - name: output
+          mountPath: /output
+      - name: result-extractor
+        image: registry.access.redhat.com/ubi9/ubi
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Waiting for guidellm benchmark to complete..."
+          while [ ! -f /output/$(OUTPUT_FILENAME) ]; do
+            sleep 10
+          done
+          echo "Benchmark completed. Extracting results..."
+          cd /output
+          
+          # Create timestamped directory
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          RESULT_DIR="${MODEL_NAME}_${TIMESTAMP}"
+          mkdir -p $RESULT_DIR
+          
+          # Copy and organize results
+          cp $(OUTPUT_FILENAME) $RESULT_DIR/
+          
+          # Create summary info
+          echo "Model: $(MODEL_NAME)" > $RESULT_DIR/benchmark_info.txt
+          echo "Target: $(TARGET)" >> $RESULT_DIR/benchmark_info.txt
+          echo "Processor: $(PROCESSOR)" >> $RESULT_DIR/benchmark_info.txt
+          echo "Data Config: $(DATA_CONFIG)" >> $RESULT_DIR/benchmark_info.txt
+          echo "Timestamp: $TIMESTAMP" >> $RESULT_DIR/benchmark_info.txt
+          
+          # Package results
+          tar czf ${RESULT_DIR}.tar.gz $RESULT_DIR
+          
+          echo "Results packaged to: ${RESULT_DIR}.tar.gz"
+          ls -la /output/
+        env:
+        - name: TARGET
+          value: "http://llama32-3b.llama-serve.svc.cluster.local:8000/v1"
+        - name: MODEL_NAME
+          value: "llama32"
+        - name: PROCESSOR
+          value: "RedHatAI/Llama-3.2-3B-Instruct-quantized.w8a8"
+        - name: DATA_CONFIG
+          value: "{\"type\":\"emulated\",\"prompt_tokens\":512,\"output_tokens\":128}"
+        - name: OUTPUT_FILENAME
+          value: "llama32-3b.yaml"
+        volumeMounts:
+        - name: output
+          mountPath: /output
+      restartPolicy: Never
+      volumes:
+      - name: output
+        persistentVolumeClaim:
+          claimName: guidellm-output-pvc
+  backoffLimit: 0

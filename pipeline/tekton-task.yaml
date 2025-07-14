@@ -1,0 +1,94 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: guidellm-benchmark
+spec:
+  description: "Run guidellm benchmark against an endpoint and extract results"
+  workspaces:
+    - name: shared-workspace
+      description: "Shared workspace for storing benchmark results"
+  params:
+    - name: target
+      type: string
+      description: "Target endpoint URL"
+      default: "http://llama32-3b.llama-serve.svc.cluster.local:8000/v1"
+    - name: model-name
+      type: string
+      description: "Model name identifier"
+      default: "llama32"
+    - name: processor
+      type: string
+      description: "Processor/model path"
+      default: "RedHatAI/Llama-3.2-3B-Instruct-quantized.w8a8"
+    - name: data-config
+      type: string
+      description: "Data configuration JSON"
+      default: '{"type":"emulated","prompt_tokens":512,"output_tokens":128}'
+    - name: output-filename
+      type: string
+      description: "Output filename"
+      default: "benchmark-results.yaml"
+    - name: rate-type
+      type: string
+      description: "Rate type for benchmark"
+      default: "synchronous"
+    - name: max-seconds
+      type: string
+      description: "Maximum benchmark duration in seconds"
+      default: "1800"
+    - name: guidellm-image
+      type: string
+      description: "Guidellm container image"
+      default: "quay.io/rhoai-genaiops/guidellm:v1"
+  steps:
+    - name: run-benchmark
+      image: "$(params.guidellm-image)"
+      command: ["guidellm"]
+      args:
+        - "benchmark"
+        - "--target=$(params.target)"
+        - "--model=$(params.model-name)"
+        - "--processor=$(params.processor)"
+        - "--data=$(params.data-config)"
+        - "--output-path=$(workspaces.shared-workspace.path)/$(params.output-filename)"
+        - "--rate-type=$(params.rate-type)"
+        - "--max-seconds=$(params.max-seconds)"
+    - name: extract-results
+      image: "registry.access.redhat.com/ubi9/ubi"
+      workingDir: "$(workspaces.shared-workspace.path)"
+      script: |
+        #!/bin/bash
+        set -e
+        
+        echo "Extracting and organizing benchmark results..."
+        
+        # Create timestamped directory
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        RESULT_DIR="$(params.model-name)_${TIMESTAMP}"
+        mkdir -p $RESULT_DIR
+        
+        # Copy and organize results
+        if [ -f "$(params.output-filename)" ]; then
+          cp "$(params.output-filename)" "$RESULT_DIR/"
+          
+          # Create summary info
+          cat > "$RESULT_DIR/benchmark_info.txt" << EOF
+        Model: $(params.model-name)
+        Target: $(params.target)
+        Processor: $(params.processor)
+        Data Config: $(params.data-config)
+        Rate Type: $(params.rate-type)
+        Max Seconds: $(params.max-seconds)
+        Timestamp: $TIMESTAMP
+        EOF
+          
+          # Package results
+          tar czf "${RESULT_DIR}.tar.gz" "$RESULT_DIR"
+          
+          echo "Results packaged to: ${RESULT_DIR}.tar.gz"
+          echo "Contents of workspace:"
+          ls -la
+        else
+          echo "ERROR: Benchmark output file not found: $(params.output-filename)"
+          exit 1
+        fi

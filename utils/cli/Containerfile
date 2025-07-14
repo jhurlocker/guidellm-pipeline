@@ -1,0 +1,39 @@
+FROM registry.access.redhat.com/ubi9/python-312:9.5-1744198409
+
+# Set labels for better container management
+LABEL name="guidellm-benchmark" \
+      version="1.0" \
+      description="GuideLL benchmark container for performance testing" \
+      maintainer="CAI Team"
+
+# Switch to root temporarily to create directories
+USER root
+
+# Create output directory with proper permissions
+RUN mkdir -p /output && \
+    chown -R 1001:1001 /output
+
+# Switch back to non-root user (UBI Python image default user)
+USER 1001
+
+# Set working directory
+WORKDIR /app
+
+# Upgrade pip and install guidellm with potential extras
+RUN pip install --upgrade pip && \
+    pip install guidellm requests urllib3
+
+# Health check to verify guidellm is working
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD guidellm --help || exit 1
+
+# Set default environment variables (can be overridden)
+ENV TARGET=http://localhost:8000/v1 \
+    MODEL_NAME=llama32 \
+    PROCESSOR=RedHatAI/Llama-3.2-3B-Instruct-quantized.w8a8 \
+    DATA_CONFIG='{"type":"emulated","prompt_tokens":512,"output_tokens":128}' \
+    OUTPUT_FILENAME=benchmark-results.yaml \
+    RATE_TYPE=synchronous \
+    MAX_SECONDS=1800
+
+ENTRYPOINT ["guidellm"]

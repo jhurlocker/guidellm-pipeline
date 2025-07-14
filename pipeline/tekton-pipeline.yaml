@@ -1,0 +1,81 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: guidellm-benchmark-pipeline
+spec:
+  description: "Pipeline to run guidellm benchmarks against model endpoints"
+  workspaces:
+    - name: shared-workspace
+      description: "Shared workspace for storing benchmark results"
+  params:
+    - name: target
+      type: string
+      description: "Target endpoint URL"
+      default: "http://llama32-3b.llama-serve.svc.cluster.local:8000/v1"
+    - name: model-name
+      type: string
+      description: "Model name identifier"
+      default: "llama32"
+    - name: processor
+      type: string
+      description: "Processor/model path"
+      default: "RedHatAI/Llama-3.2-3B-Instruct-quantized.w8a8"
+    - name: data-config
+      type: string
+      description: "Data configuration JSON"
+      default: '{"type":"emulated","prompt_tokens":512,"output_tokens":128}'
+    - name: max-seconds
+      type: string
+      description: "Maximum benchmark duration in seconds"
+      default: "1800"
+    - name: rate-type
+      type: string
+      description: "Rate type for benchmark"
+      default: "synchronous"
+  tasks:
+    - name: benchmark
+      taskRef:
+        name: guidellm-benchmark
+      workspaces:
+        - name: shared-workspace
+          workspace: shared-workspace
+      params:
+        - name: target
+          value: "$(params.target)"
+        - name: model-name
+          value: "$(params.model-name)"
+        - name: processor
+          value: "$(params.processor)"
+        - name: data-config
+          value: "$(params.data-config)"
+        - name: output-filename
+          value: "$(params.model-name)-results.yaml"
+        - name: rate-type
+          value: "$(params.rate-type)"
+        - name: max-seconds
+          value: "$(params.max-seconds)"
+---
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: guidellm-benchmark-run
+spec:
+  pipelineRef:
+    name: guidellm-benchmark-pipeline
+  workspaces:
+    - name: shared-workspace
+      persistentVolumeClaim:
+        claimName: guidellm-output-pvc
+  params:
+    - name: target
+      value: "http://llama32-3b.llama-serve.svc.cluster.local:8000/v1"
+    - name: model-name
+      value: "llama32-3b"
+    - name: processor
+      value: "RedHatAI/Llama-3.2-3B-Instruct-quantized.w8a8"
+    - name: data-config
+      value: '{"type":"emulated","prompt_tokens":512,"output_tokens":128}'
+    - name: max-seconds
+      value: "1800"
+    - name: rate-type
+      value: "synchronous"
