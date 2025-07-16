@@ -54,11 +54,11 @@ tkn pipeline start guidellm-benchmark-pipeline \
 
 Once the Tekton pipeline starts, the GuideLLM benchmark CLI will be triggered with the input parameters:
 
-![GuideLLM Pipeline](./assets/pics/guidellm3.png)
+<img src="./assets/pics/guidellm3.png" alt="GuideLLM Pipeline" width="600">
 
 The GuideLLM benchmark will begin running and start simulating real-world inference workloads against the target endpoint:
 
-![GuideLLM Pipeline](./assets/pics/guidellm2.png)
+<img src="./assets/pics/guidellm2.png" alt="GuideLLM Pipeline" width="600">
 
 ## Configuration Options
 
@@ -75,7 +75,7 @@ The GuideLLM benchmark will begin running and start simulating real-world infere
 
 The benchmark generates comprehensive performance metrics and visualizations:
 
-![GuideLLM Pipeline](./assets/pics/guidellm1.png)
+<img src="./assets/pics/guidellm1.png" alt="GuideLLM Pipeline" width="600">
 
 The results provide detailed insights into throughput, latency, resource utilization, and other key performance indicators to help optimize your LLM deployment strategy.
 
