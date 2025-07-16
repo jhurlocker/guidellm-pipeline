@@ -2,9 +2,9 @@
 
 A configurable pipeline for running [GuideLLM](https://github.com/neuralmagic/guidellm) benchmarks against LLM endpoints.
 
-![GuideLLM Pipeline](./assets/pics/guidellm4.png)
+<img src="./assets/pics/guidellm4.png" alt="GuideLLM Pipeline" width="400">
 
-![GuideLLM Benchmark Results](./assets/pics/guidellm1.png)
+<img src="./assets/pics/guidellm1.png" alt="GuideLLM Benchmark Results" width="400">
 
 ## GuideLLM Overview
 
