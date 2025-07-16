@@ -1,6 +1,21 @@
 # GuideLLM Benchmark Pipeline
 
-A configurable pipeline for running [GuideLLM](https://github.com/neuralmagic/guidellm) benchmarks against model endpoints with result extraction and packaging.
+A configurable pipeline for running [GuideLLM](https://github.com/neuralmagic/guidellm) benchmarks against LLM endpoints.
+
+![GuideLLM Pipeline](./assets/pics/guidellm4.png)
+
+![GuideLLM Benchmark Results](./assets/pics/guidellm1.png)
+
+## GuideLLM Overview
+
+GuideLLM evaluates and optimizes LLM deployments by simulating real-world inference workloads to assess performance, resource requirements, and cost implications across different hardware configurations.
+
+## Key Features
+
+- **Performance & Scalability Testing**: Analyze LLM inference under various load scenarios to meet SLOs
+- **Resource & Cost Optimization**: Determine optimal hardware configurations and deployment strategies
+- **Flexible Deployment**: Support for Kubernetes Jobs and Tekton Pipelines with configurable parameters
+- **Automated Results**: Timestamped output directories with comprehensive benchmark results
 
 ## Usage
 
@@ -37,6 +52,14 @@ tkn pipeline start guidellm-benchmark-pipeline \
   --workspace name=shared-workspace,claimName=guidellm-output-pvc
 ```
 
+Once the Tekton pipeline starts, the GuideLLM benchmark CLI will be triggered with the input parameters:
+
+![GuideLLM Pipeline](./assets/pics/guidellm3.png)
+
+The GuideLLM benchmark will begin running and start simulating real-world inference workloads against the target endpoint:
+
+![GuideLLM Pipeline](./assets/pics/guidellm2.png)
+
 ## Configuration Options
 
 ### Environment Variables
@@ -48,11 +71,13 @@ tkn pipeline start guidellm-benchmark-pipeline \
 - `RATE_TYPE`: Rate type (synchronous/poisson)
 - `MAX_SECONDS`: Maximum benchmark duration
 
-### Pre-defined Configurations
-- `llama32-3b`: Standard 3B model test
-- `llama32-1b`: 1B model test
-- `stress-test`: High-load test with larger tokens
-- `async-test`: Asynchronous/Poisson rate test
+## Results
+
+The benchmark generates comprehensive performance metrics and visualizations:
+
+![GuideLLM Pipeline](./assets/pics/guidellm1.png)
+
+The results provide detailed insights into throughput, latency, resource utilization, and other key performance indicators to help optimize your LLM deployment strategy.
 
 ## Output Structure
 

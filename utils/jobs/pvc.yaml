@@ -3,9 +3,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: guidellm-output-pvc
 spec:
-  storageClassName: nfs-csi
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
