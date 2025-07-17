@@ -34,6 +34,12 @@ spec:
           value: "synchronous"
         - name: MAX_SECONDS
           value: "1800"
+        - name: GUIDELLM__OPENAI__API_KEY
+          value: "f2f1423XXXXXXXXXXX8f39b6a3e5b25"
+        - name: GUIDELLM__MAX_CONCURRENCY
+          value: "10"
+        - name: HUGGING_FACE_HUB_TOKEN
+          value: "your-huggingface-token-here"
         volumeMounts:
         - name: output
           mountPath: /output

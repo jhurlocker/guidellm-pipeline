@@ -40,6 +40,18 @@ spec:
       type: string
       description: "Guidellm container image"
       default: "quay.io/rhoai-genaiops/guidellm:v1"
+    - name: api-key
+      type: string
+      description: "OpenAI API key for authentication"
+      default: "f2f1423XXXXXXXXXXX8f39b6a3e5b25"
+    - name: max-concurrency
+      type: string
+      description: "Maximum concurrency for benchmark"
+      default: "10"
+    - name: huggingface-token
+      type: string
+      description: "Hugging Face token for accessing gated models"
+      default: "your-huggingface-token-here"
   steps:
     - name: run-benchmark
       image: "$(params.guidellm-image)"
@@ -53,6 +65,13 @@ spec:
         - "--output-path=$(workspaces.shared-workspace.path)/$(params.output-filename)"
         - "--rate-type=$(params.rate-type)"
         - "--max-seconds=$(params.max-seconds)"
+      env:
+        - name: GUIDELLM__OPENAI__API_KEY
+          value: "$(params.api-key)"
+        - name: GUIDELLM__MAX_CONCURRENCY
+          value: "$(params.max-concurrency)"
+        - name: HUGGING_FACE_HUB_TOKEN
+          value: "$(params.huggingface-token)"
     - name: extract-results
       image: "registry.access.redhat.com/ubi9/ubi"
       workingDir: "$(workspaces.shared-workspace.path)"

@@ -32,6 +32,18 @@ spec:
       type: string
       description: "Rate type for benchmark"
       default: "synchronous"
+    - name: api-key
+      type: string
+      description: "OpenAI API key for authentication"
+      default: "f2f1423XXXXXXXXXXX8f39b6a3e5b25"
+    - name: max-concurrency
+      type: string
+      description: "Maximum concurrency for benchmark"
+      default: "10"
+    - name: huggingface-token
+      type: string
+      description: "Hugging Face token for accessing gated models"
+      default: "your-huggingface-token-here"
   tasks:
     - name: benchmark
       taskRef:
@@ -54,6 +66,12 @@ spec:
           value: "$(params.rate-type)"
         - name: max-seconds
           value: "$(params.max-seconds)"
+        - name: api-key
+          value: "$(params.api-key)"
+        - name: max-concurrency
+          value: "$(params.max-concurrency)"
+        - name: huggingface-token
+          value: "$(params.huggingface-token)"
 ---
 apiVersion: tekton.dev/v1
 kind: PipelineRun
@@ -79,3 +97,9 @@ spec:
       value: "1800"
     - name: rate-type
       value: "synchronous"
+    - name: api-key
+      value: "f2f1423XXXXXXXXXXX8f39b6a3e5b25"
+    - name: max-concurrency
+      value: "10"
+    - name: huggingface-token
+      value: "your-huggingface-token-here"
