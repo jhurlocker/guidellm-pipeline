@@ -2,6 +2,8 @@
 
 A user-friendly Streamlit interface for running GuideLLM benchmarks with real-time output and result visualization.
 
+![GuideLLM Workbench Interface](../../assets/pics/wb1.png)
+
 ## Features
 
 - 🎯 **Easy Configuration**: Simple form-based input for all GuideLLM parameters
@@ -43,6 +45,8 @@ A user-friendly Streamlit interface for running GuideLLM benchmarks with real-ti
 5. **Data Configuration**: Set prompt/output token counts or custom data
 6. **Run Benchmark**: Click "Run Benchmark" and monitor real-time output
 7. **View Results**: Explore results in the history section with downloadable YAML files
+
+![GuideLLM Workbench Results](../../assets/pics/wb2.png)
 
 ### Supported Parameters
 

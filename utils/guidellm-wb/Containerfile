@@ -1,0 +1,81 @@
+ARG PYTHON=312
+
+# Use a multi-stage build to create a lightweight production image
+
+FROM registry.access.redhat.com/ubi9/python-${PYTHON}-minimal AS builder
+
+USER root
+
+# Install system dependencies needed for some Python packages
+RUN microdnf install -y gcc python3-devel && microdnf clean all
+
+# Copy requirements first
+COPY utils/guidellm-wb/requirements.txt /tmp/requirements.txt
+
+# Create a venv and install guidellm from PyPI and Streamlit dependencies
+RUN python3 -m venv /opt/app-root/guidellm \
+    && /opt/app-root/guidellm/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/app-root/guidellm/bin/pip install --no-cache-dir guidellm \
+    && /opt/app-root/guidellm/bin/pip install --no-cache-dir -r /tmp/requirements.txt \
+    && rm -f /tmp/requirements.txt
+
+# Production image
+FROM registry.access.redhat.com/ubi9/python-${PYTHON}-minimal
+
+USER root
+
+# Copy the virtual environment from the builder stage
+COPY --from=builder /opt/app-root/guidellm /opt/app-root/guidellm
+
+# Add guidellm bin to PATH
+ENV PATH="/opt/app-root/guidellm/bin:$PATH"
+
+# Create a non-root user and app directory
+RUN useradd -md /app guidellm && \
+    mkdir -p /app/results && \
+    chown -R guidellm:guidellm /app
+
+# Copy the Streamlit web application
+COPY --chown=guidellm:guidellm utils/guidellm-wb/app.py /app/
+COPY --chown=guidellm:guidellm utils/guidellm-wb/requirements.txt /app/
+COPY --chown=guidellm:guidellm utils/guidellm-wb/entrypoint.sh /app/
+
+# Make entrypoint script executable
+RUN chmod +x /app/entrypoint.sh
+
+# Switch to non-root user
+USER guidellm
+
+# Set working directory
+WORKDIR /app
+
+# Expose Streamlit default port
+EXPOSE 8501
+
+# Metadata
+LABEL org.opencontainers.image.source="https://github.com/neuralmagic/guidellm" \
+      org.opencontainers.image.description="GuideLLM Benchmark Workbench - Streamlit Web Interface" \
+      org.opencontainers.image.title="GuideLLM Workbench" \
+      org.opencontainers.image.vendor="Neural Magic"
+
+# Environment variables for Streamlit configuration
+ENV STREAMLIT_SERVER_PORT=8501 \
+    STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
+    STREAMLIT_SERVER_HEADLESS=true \
+    STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+    STREAMLIT_SERVER_FILE_WATCHER_TYPE=none \
+    STREAMLIT_SERVER_ENABLE_CORS=false \
+    STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
+
+# Default environment variables for GuideLLM (can be overridden)
+ENV GUIDELLM_TARGET="http://localhost:8000/v1" \
+    GUIDELLM_MODEL="llama-3.2-3b" \
+    GUIDELLM_RATE_TYPE="synchronous" \
+    GUIDELLM_MAX_REQUESTS="100" \
+    GUIDELLM_MAX_SECONDS="60"
+
+# Health check to ensure the Streamlit app is running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')" || exit 1
+
+ENTRYPOINT [ "/app/entrypoint.sh" ]

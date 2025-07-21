@@ -1,10 +1,24 @@
-# GuideLLM Benchmark Pipeline
+# GuideLLM Benchmark Pipeline & Workbench
 
 A configurable pipeline for running [GuideLLM](https://github.com/neuralmagic/guidellm) benchmarks against LLM endpoints.
 
 <img src="./assets/pics/guidellm4.png" alt="GuideLLM Pipeline" width="400">
 
 <img src="./assets/pics/guidellm1.png" alt="GuideLLM Benchmark Results" width="400">
+
+## Table of Contents
+
+- [GuideLLM Overview](#guidellm-overview)
+- [Key Features](#key-features)
+- [Usage](#usage)
+  - [Running as Kubernetes Job](#running-as-kubernetes-job)
+  - [Running as Tekton Pipeline](#running-as-tekton-pipeline)
+- [Configuration Options](#configuration-options)
+- [Results](#results)
+- [Output Structure](#output-structure)
+- [GuideLLM Workbench](#guidellm-workbench)
+  - [Features](#features)
+  - [Running the Workbench](#running-the-workbench)
 
 ## GuideLLM Overview
 
@@ -89,3 +103,41 @@ Results are organized in timestamped directories:
 │   └── benchmark_info.txt
 └── model-name_YYYYMMDD_HHMMSS.tar.gz
 ```
+
+## GuideLLM Workbench
+
+The GuideLLM Workbench provides a user-friendly Streamlit web interface for running benchmarks interactively with real-time monitoring and result visualization.
+
+<img src="./assets/pics/wb0.png" alt="GuideLLM Workbench Interface" width="800">
+
+### Features
+
+- **Interactive Configuration**: Easy-to-use forms for endpoint, authentication, and benchmark parameters
+- **Real-time Monitoring**: Live metrics parsing during benchmark execution
+- **Quick Stats**: Sidebar with key performance indicators (requests/sec, tokens/sec, latency, TTFT)
+- **Results History**: Session-based storage with detailed result viewing
+- **Download Results**: Export benchmark results as YAML files
+- **Comprehensive Results View**: Detailed breakdown of all performance metrics
+
+<img src="./assets/pics/wb1.png" alt="GuideLLM Workbench Results" width="800">
+
+### Running the Workbench
+
+#### Local Development
+```bash
+cd utils/guidellm-wb
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+#### Container Deployment
+```bash
+# Build the container
+podman build -f utils/guidellm-wb/Containerfile -t guidellm-workbench .
+
+# Run the container
+podman run -p 8501:8501 guidellm-workbench
+```
+
+The workbench will be available at `http://localhost:8501` and provides an intuitive interface for configuring and running GuideLLM benchmarks with immediate feedback and comprehensive result analysis.
+

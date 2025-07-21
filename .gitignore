@@ -3,6 +3,16 @@ __pycache__/
 *.py[codz]
 *$py.class
 *.claude
+CLAUDE.md
+
+# GuideLLM Results - Exclude all benchmark results
+results/
+*/results/
+**/results/
+*.results.*
+benchmark-results.*
+*.yaml
+*.json
 
 # C extensions
 *.so

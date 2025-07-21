@@ -53,7 +53,7 @@ with st.sidebar:
     
     model_name = st.text_input(
         "Model Name",
-        value="llama-3.2-3b",
+        value="llama-3-2-3b",
         placeholder="Enter model identifier"
     )
     
@@ -119,7 +119,7 @@ with st.sidebar:
         "Max Duration (seconds)",
         min_value=10,
         max_value=3600,
-        value=300,
+        value=60,
         step=10
     )
     
@@ -144,15 +144,15 @@ with st.sidebar:
     
     processor_type = st.selectbox(
         "Processor Type", 
-        ["Use model default", "Custom processor"], 
+        ["Custom processor", "Use model default"], 
         index=0
     )
     
     if processor_type == "Custom processor":
         processor = st.text_input(
             "Processor Path",
-            value="microsoft/DialoGPT-medium",
-            placeholder="e.g., gpt2, microsoft/DialoGPT-medium"
+            value="meta-llama/Llama-3.2-3B",
+            placeholder="e.g., meta-llama/Llama-3.2-3B, gpt2, microsoft/DialoGPT-medium"
         )
     else:
         processor = None
@@ -160,14 +160,14 @@ with st.sidebar:
     # Data Configuration
     st.subheader("Data Configuration")
     
-    data_type = st.selectbox("Data Type", ["simple", "emulated", "custom"], index=0)
+    data_type = st.selectbox("Data Type", ["emulated", "simple", "custom"], index=0)
     
     if data_type == "simple":
         st.info("Simple mode uses basic prompts without tokenizer requirements")
         data_config = "prompt_tokens=512,output_tokens=128"
         
-    elif data_type == "emulated":
-        st.error("⚠️ Emulated mode requires a valid processor/tokenizer and may cause authentication errors!")
+    if data_type == "emulated":
+        st.info("💡 Emulated mode generates synthetic data using the specified processor/tokenizer")
         prompt_tokens = st.number_input(
             "Prompt Tokens",
             min_value=1,
@@ -224,6 +224,11 @@ with col1:
     
     # Run benchmark button
     if st.button("🚀 Run Benchmark", type="primary", disabled=st.session_state.benchmark_running):
+        # Clear any previous live metrics
+        if 'live_metrics' in st.session_state:
+            del st.session_state.live_metrics
+        if 'final_benchmark_results' in st.session_state:
+            del st.session_state.final_benchmark_results
         if not target or not model_name:
             st.error("Please provide both target endpoint and model name")
         else:
@@ -285,12 +290,19 @@ with col1:
                 )
                 
                 output_lines = []
+                benchmark_stats = []
+                stats_started = False
                 start_time = time.time()
+                
+                # Create placeholders for real-time display
+                progress_placeholder = st.empty()
+                status_placeholder = st.empty()
                 
                 # Real-time output display
                 for line in iter(process.stdout.readline, ''):
                     if line:
-                        output_lines.append(line.strip())
+                        line_stripped = line.strip()
+                        output_lines.append(line_stripped)
                         current_time = time.time()
                         elapsed = current_time - start_time
                         progress = min(elapsed / max_seconds, 1.0)
@@ -298,12 +310,61 @@ with col1:
                         progress_bar.progress(progress)
                         status_text.text(f"Running... ({elapsed:.0f}s elapsed)")
                         
-                        # Display last 20 lines of output
-                        recent_output = "\n".join(output_lines[-20:])
+                        # Parse real-time benchmark progress and store in session state
+                        if "│" in line_stripped and ("req/s" in line_stripped or "Lat" in line_stripped):
+                            # Extract live metrics from the progress box
+                            try:
+                                # Parse lines like: │ [00:47:39] ⠦ 100% synchronous (complete) Req: 0.3 req/s, 3.88s Lat, 1.0 Conc, 14 Comp, 1 Inc, 0 Err │
+                                if "req/s" in line_stripped and "Lat" in line_stripped:
+                                    import re
+                                    
+                                    # Extract metrics using regex
+                                    req_match = re.search(r'Req:\s*([\d.]+)\s*req/s', line_stripped)
+                                    lat_match = re.search(r'([\d.]+)s\s*Lat', line_stripped)
+                                    conc_match = re.search(r'([\d.]+)\s*Conc', line_stripped)
+                                    comp_match = re.search(r'(\d+)\s*Comp', line_stripped)
+                                    
+                                    tok_match = re.search(r'Tok:\s*([\d.]+)\s*gen/s,\s*([\d.]+)\s*tot/s', line_stripped)
+                                    ttft_match = re.search(r'([\d.]+)ms\s*TTFT', line_stripped)
+                                    
+                                    if req_match and lat_match and tok_match and ttft_match:
+                                        # Store live metrics in session state for sidebar display
+                                        st.session_state.live_metrics = {
+                                            "requests_per_sec": req_match.group(1),
+                                            "latency": f"{lat_match.group(1)}s",
+                                            "concurrency": conc_match.group(1) if conc_match else "1",
+                                            "completed": comp_match.group(1) if comp_match else "0",
+                                            "gen_tokens_per_sec": tok_match.group(1),
+                                            "total_tokens_per_sec": tok_match.group(2),
+                                            "ttft": f"{ttft_match.group(1)}ms"
+                                        }
+                            except:
+                                pass  # If parsing fails, continue
+                        
+                        # Check for progress bar updates
+                        elif "Generating..." in line_stripped and "━" in line_stripped:
+                            # Show progress info
+                            with progress_placeholder.container():
+                                st.info(f"🔄 {line_stripped}")
+                        
+                        # Check for phase updates
+                        elif any(phase in line_stripped for phase in ["Creating backend", "Creating request loader", "Created loader"]):
+                            with status_placeholder.container():
+                                st.info(f"📋 {line_stripped}")
+                        
+                        # Check for benchmark stats table
+                        elif "Benchmark Stats:" in line_stripped or "===============" in line_stripped:
+                            stats_started = True
+                        
+                        if stats_started:
+                            benchmark_stats.append(line_stripped)
+                        
+                        # Display last 10 lines of output (reduced to make room for live metrics)
+                        recent_output = "\n".join(output_lines[-10:])
                         output_placeholder.text_area(
-                            "Real-time Output",
+                            "Console Output",
                             value=recent_output,
-                            height=400,
+                            height=200,
                             key=f"output_{len(output_lines)}"
                         )
                 
@@ -312,18 +373,28 @@ with col1:
                 if process.returncode == 0:
                     st.success("✅ Benchmark completed successfully!")
                     
+                    # Show final results in the main area too
+                    st.success("🎉 Benchmark completed! Check the sidebar for detailed results.")
+                    
+                    # Store final results in session state for sidebar display
+                    if benchmark_stats:
+                        final_stats = "\n".join(benchmark_stats)
+                        st.session_state.final_benchmark_results = final_stats
+                    
                     # Load and display results
                     if output_file.exists():
                         with open(output_file, 'r') as f:
                             results = yaml.safe_load(f)
                         
-                        # Store in session state
+                        # Store in session state with benchmark stats
+                        final_stats = "\n".join(benchmark_stats) if benchmark_stats else None
                         result_entry = {
                             "timestamp": timestamp,
                             "model": model_name,
                             "target": target,
                             "config": config_display,
                             "results": results,
+                            "benchmark_stats": final_stats,
                             "output_file": str(output_file)
                         }
                         st.session_state.results_history.append(result_entry)
@@ -339,13 +410,80 @@ with col1:
             
             finally:
                 st.session_state.benchmark_running = False
-                progress_bar.empty()
-                status_text.empty()
+                # Only clear progress elements, keep results visible
+                try:
+                    progress_bar.empty()
+                    status_text.empty()
+                    # Live metrics now stored in session state for sidebar
+                    # DON'T clear output_placeholder - it shows console history
+                    progress_placeholder.empty() 
+                    status_placeholder.empty()
+                except:
+                    pass
+
+    # Show live metrics below the button (main area)
+    if hasattr(st.session_state, 'live_metrics') and st.session_state.benchmark_running:
+        st.subheader("🔥 Live Performance Metrics")
+        metrics = st.session_state.live_metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("🚀 Requests/sec", metrics["requests_per_sec"])
+        with col2:
+            st.metric("⚡ Tokens/sec", metrics["gen_tokens_per_sec"])
+        with col3:
+            st.metric("⏱️ Latency", metrics["latency"])
+        with col4:
+            st.metric("🎯 TTFT", metrics["ttft"])
+    
+    # Show final results table in main area
+    elif hasattr(st.session_state, 'final_benchmark_results'):
+        st.success("🎉 Benchmark completed! Check the sidebar for key metrics.")
+        
+        # Show complete results table in main area
+        final_stats = st.session_state.final_benchmark_results
+        try:
+            for line in final_stats.split('\n'):
+                if "synchronous" in line or "constant" in line or "poisson" in line:
+                    parts = [p.strip() for p in line.split("|")]
+                    if len(parts) >= 10:
+                        st.subheader("📊 Complete Results")
+                        results_data = {
+                            "Metric": ["Rate Type", "Requests/Second", "Concurrency", "Output Tokens/sec", "Total Tokens/sec", 
+                                      "Mean Latency (ms)", "Median Latency (ms)", "P99 Latency (ms)", 
+                                      "Mean TTFT (ms)", "Median TTFT (ms)", "P99 TTFT (ms)"],
+                            "Value": [parts[0], parts[1], parts[2], parts[3], parts[4], 
+                                     parts[5], parts[6], parts[7], parts[8], parts[9], parts[10]]
+                        }
+                        df = pd.DataFrame(results_data)
+                        st.dataframe(df, use_container_width=True, hide_index=True)
+                        break
+        except:
+            pass
 
 with col2:
     st.header("📊 Quick Stats")
     
-    if st.session_state.results_history:
+    # Show final results if just completed
+    if hasattr(st.session_state, 'final_benchmark_results'):
+        final_stats = st.session_state.final_benchmark_results
+        
+        # Parse and show key metrics
+        try:
+            for line in final_stats.split('\n'):
+                if "synchronous" in line or "constant" in line or "poisson" in line:
+                    parts = [p.strip() for p in line.split("|")]
+                    if len(parts) >= 10:
+                        st.subheader("✅ Final Results")
+                        st.metric("🚀 Requests/sec", parts[1])
+                        st.metric("⚡ Tokens/sec", parts[3])
+                        st.metric("⏱️ Latency", f"{parts[5]} ms")
+                        st.metric("🎯 TTFT", f"{parts[8]} ms")
+                        break
+        except:
+            pass
+    
+    # Always show general stats and historical data when available
+    elif st.session_state.results_history:
         total_runs = len(st.session_state.results_history)
         latest_run = st.session_state.results_history[-1]
         
@@ -353,8 +491,27 @@ with col2:
         st.metric("Latest Model", latest_run["model"])
         st.metric("Latest Timestamp", latest_run["timestamp"])
         
-        # Quick results from latest run
-        if "results" in latest_run and latest_run["results"]:
+        # Beautiful latest results display
+        if "benchmark_stats" in latest_run and latest_run["benchmark_stats"]:
+            st.subheader("🏆 Latest Performance")
+            
+            # Parse the latest benchmark stats for display
+            try:
+                stats_lines = latest_run["benchmark_stats"].split('\n')
+                for line in stats_lines:
+                    if "synchronous" in line or "constant" in line or "poisson" in line:
+                        parts = [p.strip() for p in line.split("|")]
+                        if len(parts) >= 10:
+                            st.metric("🚀 Requests/sec", parts[1])
+                            st.metric("⚡ Tokens/sec", parts[3])
+                            st.metric("⏱️ Latency", f"{parts[5]} ms")
+                            st.metric("🎯 TTFT", f"{parts[8]} ms")
+                            break
+            except:
+                pass
+        
+        # Fallback to old results format
+        elif "results" in latest_run and latest_run["results"]:
             results = latest_run["results"]
             if "summary" in results:
                 summary = results["summary"]
@@ -411,8 +568,46 @@ if st.session_state.results_history:
         
         with col2:
             st.subheader("Results")
+            
+            # Show benchmark stats if available
+            if "benchmark_stats" in result and result["benchmark_stats"]:
+                st.subheader("📊 Benchmark Stats")
+                
+                # Parse and display beautifully
+                try:
+                    stats_lines = result["benchmark_stats"].split('\n')
+                    data_row = None
+                    for line in stats_lines:
+                        if "synchronous" in line or "constant" in line or "poisson" in line:
+                            data_row = line
+                            break
+                    
+                    if data_row:
+                        parts = [p.strip() for p in data_row.split("|")]
+                        if len(parts) >= 10:
+                            # Key metrics
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.metric("🚀 Requests/sec", parts[1])
+                                st.metric("⏱️ Mean Latency", f"{parts[5]} ms")
+                            with col2:
+                                st.metric("⚡ Tokens/sec", parts[3])
+                                st.metric("🎯 TTFT", f"{parts[8]} ms")
+                            
+                            # Full details in expander
+                            with st.expander("📋 Full Benchmark Stats"):
+                                st.code(result["benchmark_stats"], language="text")
+                        else:
+                            st.code(result["benchmark_stats"], language="text")
+                    else:
+                        st.code(result["benchmark_stats"], language="text")
+                except:
+                    st.code(result["benchmark_stats"], language="text")
+            
+            # Show detailed results
             if "results" in result and result["results"]:
-                st.json(result["results"])
+                with st.expander("📋 Detailed YAML Results"):
+                    st.json(result["results"])
             else:
                 st.info("No detailed results available")
         
