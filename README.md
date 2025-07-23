@@ -1,5 +1,7 @@
 # GuideLLM Benchmark Pipeline & Workbench
 
+## GuideLLM Pipeline
+
 A configurable pipeline for running [GuideLLM](https://github.com/neuralmagic/guidellm) benchmarks against LLM endpoints.
 
 <img src="./assets/pics/guidellm4.png" alt="GuideLLM Pipeline" width="400">
@@ -108,6 +110,8 @@ Results are organized in timestamped directories:
 
 The GuideLLM Workbench provides a user-friendly Streamlit web interface for running benchmarks interactively with real-time monitoring and result visualization.
 
+![GuideLLM Workbench Demo](./assets/pics/guidellm-wb-demo.gif)
+
 <img src="./assets/pics/wb0.png" alt="GuideLLM Workbench Interface" width="800">
 
 ### Features
@@ -132,12 +136,8 @@ streamlit run app.py
 
 #### Container Deployment
 ```bash
-# Build the container
-podman build -f utils/guidellm-wb/Containerfile -t guidellm-workbench .
-
-# Run the container
-podman run -p 8501:8501 guidellm-workbench
+# Use pre-built container from registry
+podman run -p 8501:8501 quay.io/rh-aiservices-bu/guidellm-wb:v1
 ```
 
 The workbench will be available at `http://localhost:8501` and provides an intuitive interface for configuring and running GuideLLM benchmarks with immediate feedback and comprehensive result analysis.
-

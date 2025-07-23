@@ -19,6 +19,14 @@ RUN python3 -m venv /opt/app-root/guidellm \
     && /opt/app-root/guidellm/bin/pip install --no-cache-dir -r /tmp/requirements.txt \
     && rm -f /tmp/requirements.txt
 
+# Set cache directory and pre-download common tokenizers to avoid runtime download issues
+ENV HF_HOME=/tmp/hf_cache \
+    TRANSFORMERS_CACHE=/tmp/hf_cache/transformers
+
+RUN mkdir -p /tmp/hf_cache && \
+    /opt/app-root/guidellm/bin/python -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('gpt2')" && \
+    /opt/app-root/guidellm/bin/python -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('microsoft/DialoGPT-medium')" || true
+
 # Production image
 FROM registry.access.redhat.com/ubi9/python-${PYTHON}-minimal
 
@@ -27,13 +35,18 @@ USER root
 # Copy the virtual environment from the builder stage
 COPY --from=builder /opt/app-root/guidellm /opt/app-root/guidellm
 
+# Copy the pre-downloaded tokenizers cache
+COPY --from=builder /tmp/hf_cache /home/guidellm/.cache
+
 # Add guidellm bin to PATH
 ENV PATH="/opt/app-root/guidellm/bin:$PATH"
 
 # Create a non-root user and app directory
 RUN useradd -md /app guidellm && \
     mkdir -p /app/results && \
-    chown -R guidellm:guidellm /app
+    mkdir -p /home/guidellm/.cache && \
+    chown -R guidellm:guidellm /app && \
+    chown -R guidellm:guidellm /home/guidellm/.cache
 
 # Copy the Streamlit web application
 COPY --chown=guidellm:guidellm utils/guidellm-wb/app.py /app/
@@ -66,6 +79,10 @@ ENV STREAMLIT_SERVER_PORT=8501 \
     STREAMLIT_SERVER_FILE_WATCHER_TYPE=none \
     STREAMLIT_SERVER_ENABLE_CORS=false \
     STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
+
+# Environment variables for HuggingFace cache
+ENV HF_HOME=/home/guidellm/.cache \
+    TRANSFORMERS_CACHE=/home/guidellm/.cache/transformers
 
 # Default environment variables for GuideLLM (can be overridden)
 ENV GUIDELLM_TARGET="http://localhost:8000/v1" \

@@ -45,30 +45,36 @@ with st.sidebar:
     
     # Basic Parameters
     st.subheader("Endpoint Configuration")
+    
     target = st.text_input(
         "Target Endpoint", 
         value="http://localhost:8000/v1",
-        placeholder="http://your-endpoint:8000/v1"
+        placeholder="http://your-endpoint:8000/v1",
+        help="Specifies the target path for the backend server to run benchmarks against. Format: http://your-server:port/v1. Required parameter to define the server endpoint."
     )
     
     model_name = st.text_input(
         "Model Name",
         value="llama-3-2-3b",
-        placeholder="Enter model identifier"
+        placeholder="Enter model identifier",
+        help="Allows selecting a specific model from the server. If not provided, defaults to the first model available. Useful when multiple models are hosted on the same endpoint."
     )
     
     # Authentication
     st.subheader("Authentication")
+    
     api_key = st.text_input(
         "API Key",
         type="password",
-        placeholder="Your API key (optional)"
+        placeholder="Your API key (optional)",
+        help="Authentication key for accessing the target endpoint. Optional for secured endpoints. Set as GUIDELLM__OPENAI__API_KEY environment variable. Required for OpenAI API, Azure OpenAI, and other secured services."
     )
     
     hf_token = st.text_input(
         "Hugging Face Token",
         type="password", 
-        placeholder="For gated models (optional)"
+        placeholder="For gated models (optional)",
+        help="Authentication token for accessing gated Hugging Face models. Required only when using gated/private models from Hugging Face. Visit HuggingFace Settings to create a token."
     )
     
     # Advanced Parameters
@@ -77,7 +83,8 @@ with st.sidebar:
     rate_type = st.selectbox(
         "Rate Type",
         ["synchronous", "throughput", "concurrent", "constant", "poisson", "sweep"],
-        index=0
+        index=0,
+        help="Defines the type of benchmark to run. synchronous: Single stream one at a time. throughput: All requests in parallel. concurrent: Fixed parallel streams. constant: Requests at constant rate. poisson: Poisson distribution. sweep: Auto-determines min/max rates."
     )
     
     # Rate parameter (required for some rate types)
@@ -120,7 +127,8 @@ with st.sidebar:
         min_value=10,
         max_value=3600,
         value=60,
-        step=10
+        step=10,
+        help="Sets the maximum duration for each benchmark run. Benchmark stops when either duration OR request limit is reached. Typical values: 30-300s for quick tests, 600+ for production validation."
     )
     
     max_requests = st.number_input(
@@ -128,7 +136,8 @@ with st.sidebar:
         min_value=1,
         max_value=10000,
         value=100,
-        step=10
+        step=10,
+        help="Sets the maximum number of requests for each benchmark run. If not provided, runs until max-seconds is reached or dataset exhausted. Useful for consistent test sizes. Typical: 100-1000 for quick tests, 5000+ for thorough benchmarks."
     )
     
     max_concurrency = st.number_input(
@@ -136,7 +145,8 @@ with st.sidebar:
         min_value=1,
         max_value=100,
         value=10,
-        step=1
+        step=1,
+        help="Global concurrency setting that limits parallel request execution. Used in throughput benchmarks to measure maximum server capacity. Higher values increase load but may hit server limits. Typical: 1-10 for single-user simulation, 20-100 for load testing."
     )
     
     # Processor Configuration  
@@ -145,22 +155,30 @@ with st.sidebar:
     processor_type = st.selectbox(
         "Processor Type", 
         ["Custom processor", "Use model default"], 
-        index=0
+        index=0,
+        help="Determines how tokenization is handled for synthetic data creation. Custom processor: Specify a HuggingFace model ID or local path. Use model default: Uses a lightweight default processor (gpt2)."
     )
     
     if processor_type == "Custom processor":
         processor = st.text_input(
             "Processor Path",
             value="meta-llama/Llama-3.2-3B",
-            placeholder="e.g., meta-llama/Llama-3.2-3B, gpt2, microsoft/DialoGPT-medium"
+            placeholder="e.g., meta-llama/Llama-3.2-3B, gpt2, microsoft/DialoGPT-medium",
+            help="HuggingFace model ID or local path to processor/tokenizer. Must match the model's processor/tokenizer for accuracy. Used for synthetic data creation and local token metrics. Supports both HuggingFace IDs and local paths."
         )
     else:
-        processor = None
+        processor = "gpt2"  # Use gpt2 as default - it's small and widely available
     
     # Data Configuration
     st.subheader("Data Configuration")
     
-    data_type = st.selectbox("Data Type", ["emulated", "simple", "custom"], index=0)
+    data_type = st.selectbox(
+        "Data Type", 
+        ["emulated", "simple", "custom"], 
+        index=0,
+        help="Specifies the dataset source for benchmark requests. emulated: Synthetic data with configurable token counts. simple: Basic prompts without tokenizer requirements. custom: HuggingFace dataset, local files, or JSON config."
+    )
+    
     
     if data_type == "simple":
         st.info("Simple mode uses basic prompts without tokenizer requirements")
@@ -168,12 +186,20 @@ with st.sidebar:
         
     if data_type == "emulated":
         st.info("💡 Emulated mode generates synthetic data using the specified processor/tokenizer")
+        if processor and ("llama" in processor.lower() or "meta-llama" in processor.lower()):
+            st.warning("🔒 **Gated Model Detected**: Llama models require a HuggingFace token. Make sure to provide your HF token above.")
+        
+        if processor_type == "Use model default" or not processor:
+            st.warning("⚠️ **Emulated mode works best with a Custom Processor.** Consider specifying a HuggingFace model ID for better token accuracy.")
+        
+        
         prompt_tokens = st.number_input(
             "Prompt Tokens",
             min_value=1,
             max_value=4096,
             value=512,
-            step=1
+            step=1,
+            help="Average number of tokens for input prompts. Used for synthetic data generation. Determines request size and complexity. Affects latency and resource usage. Additional options: prompt_tokens_stdev, prompt_tokens_min/max for range limits."
         )
         
         output_tokens = st.number_input(
@@ -181,7 +207,8 @@ with st.sidebar:
             min_value=1,
             max_value=2048,
             value=128,
-            step=1
+            step=1,
+            help="Average number of tokens for generated outputs. Controls response length in synthetic data. Impacts generation time and throughput. Affects token/sec measurements. Additional options: output_tokens_stdev, output_tokens_min/max for range limits."
         )
         
         data_config = {
@@ -229,8 +256,19 @@ with col1:
             del st.session_state.live_metrics
         if 'final_benchmark_results' in st.session_state:
             del st.session_state.final_benchmark_results
+        
+        # Validation checks
+        validation_errors = []
         if not target or not model_name:
-            st.error("Please provide both target endpoint and model name")
+            validation_errors.append("Please provide both target endpoint and model name")
+        
+        # Check for gated models without tokens
+        if processor and ("llama" in processor.lower() or "meta-llama" in processor.lower()) and not hf_token:
+            validation_errors.append("Llama models require a HuggingFace token. Please provide your HF token in the Authentication section.")
+        
+        if validation_errors:
+            for error in validation_errors:
+                st.error(error)
         else:
             st.session_state.benchmark_running = True
             
@@ -352,8 +390,8 @@ with col1:
                             with status_placeholder.container():
                                 st.info(f"📋 {line_stripped}")
                         
-                        # Check for benchmark stats table
-                        elif "Benchmark Stats:" in line_stripped or "===============" in line_stripped:
+                        # Check for benchmark stats table - be more flexible with patterns
+                        elif any(pattern in line_stripped for pattern in ["Benchmark Stats:", "===============", "Rate Type", "|synchronous|", "|constant|", "|poisson|"]):
                             stats_started = True
                         
                         if stats_started:
@@ -373,13 +411,14 @@ with col1:
                 if process.returncode == 0:
                     st.success("✅ Benchmark completed successfully!")
                     
-                    # Show final results in the main area too
-                    st.success("🎉 Benchmark completed! Check the sidebar for detailed results.")
-                    
                     # Store final results in session state for sidebar display
                     if benchmark_stats:
                         final_stats = "\n".join(benchmark_stats)
                         st.session_state.final_benchmark_results = final_stats
+                    else:
+                        # Try to parse from all output lines
+                        all_output = "\n".join(output_lines)
+                        st.session_state.final_benchmark_results = all_output
                     
                     # Load and display results
                     if output_file.exists():
@@ -468,6 +507,7 @@ with col2:
         final_stats = st.session_state.final_benchmark_results
         
         # Parse and show key metrics
+        parsed_successfully = False
         try:
             for line in final_stats.split('\n'):
                 if "synchronous" in line or "constant" in line or "poisson" in line:
@@ -478,9 +518,25 @@ with col2:
                         st.metric("⚡ Tokens/sec", parts[3])
                         st.metric("⏱️ Latency", f"{parts[5]} ms")
                         st.metric("🎯 TTFT", f"{parts[8]} ms")
+                        parsed_successfully = True
                         break
-        except:
-            pass
+        except Exception as e:
+            pass  # Silent error handling
+        
+        # Fallback: show basic info if parsing failed
+        if not parsed_successfully:
+            st.subheader("✅ Benchmark Completed")
+            st.info("Results available in history below")
+            # Try to show some basic stats from YAML results if available
+            if st.session_state.results_history:
+                latest = st.session_state.results_history[-1]
+                if "results" in latest and latest["results"]:
+                    results = latest["results"]
+                    if "summary" in results:
+                        summary = results["summary"]
+                        st.metric("🚀 Throughput", f"{summary.get('throughput', 'N/A')}")
+                        st.metric("⏱️ Mean Latency", f"{summary.get('mean_latency', 'N/A')}")
+                        parsed_successfully = True
     
     # Always show general stats and historical data when available
     elif st.session_state.results_history:
