@@ -516,6 +516,52 @@ with col1:
                         }
                         df = pd.DataFrame(results_data)
                         st.dataframe(df, use_container_width=True, hide_index=True)
+                        
+                        # Add HTML download button for the results table
+                        if st.session_state.results_history:
+                            latest_result = st.session_state.results_history[-1]
+                            if "output_file" in latest_result and Path(latest_result["output_file"]).exists():
+                                
+                                # Create HTML version of the table for download
+                                html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>GuideLLM Benchmark Results - {latest_result['timestamp']}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; background-color: #0e1117; color: white; }}
+        h1 {{ color: #fafafa; }}
+        table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
+        th, td {{ border: 1px solid #333; padding: 12px; text-align: left; }}
+        th {{ background-color: #262730; }}
+        td {{ background-color: #0e1117; }}
+        .metric {{ font-weight: bold; }}
+    </style>
+</head>
+<body>
+    <h1>📊 GuideLLM Benchmark Results</h1>
+    <p><strong>Timestamp:</strong> {latest_result['timestamp']}</p>
+    <p><strong>Model:</strong> {latest_result['model']}</p>
+    <p><strong>Target:</strong> {latest_result['target']}</p>
+    
+    <table>
+        <tr><th>Metric</th><th>Value</th></tr>"""
+                                
+                                # Add the table rows
+                                for i, (metric, value) in enumerate(zip(results_data["Metric"], results_data["Value"])):
+                                    html_content += f"<tr><td class='metric'>{metric}</td><td>{value}</td></tr>"
+                                
+                                html_content += """
+    </table>
+</body>
+</html>"""
+                                
+                                # Single HTML download button
+                                st.download_button(
+                                    label="📊 Download HTML Report", 
+                                    data=html_content,
+                                    file_name=f"benchmark-{latest_result['timestamp']}.html",
+                                    mime="text/html"
+                                )
                         break
         except:
             pass
