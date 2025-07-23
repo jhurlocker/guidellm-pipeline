@@ -3,3 +3,4 @@ pandas>=2.0.0
 plotly>=5.15.0
 pyyaml>=6.0
 pathlib2>=2.3.7
+git+https://github.com/vllm-project/guidellm.git

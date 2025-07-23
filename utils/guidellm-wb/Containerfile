@@ -1,4 +1,5 @@
 ARG PYTHON=312
+ARG INSTALL_FROM_GIT=true
 
 # Use a multi-stage build to create a lightweight production image
 
@@ -7,17 +8,32 @@ FROM registry.access.redhat.com/ubi9/python-${PYTHON}-minimal AS builder
 USER root
 
 # Install system dependencies needed for some Python packages
-RUN microdnf install -y gcc python3-devel && microdnf clean all
+RUN microdnf install -y gcc python3-devel git && microdnf clean all
 
 # Copy requirements first
 COPY utils/guidellm-wb/requirements.txt /tmp/requirements.txt
 
-# Create a venv and install guidellm from PyPI and Streamlit dependencies
+# Create a venv and install dependencies
 RUN python3 -m venv /opt/app-root/guidellm \
-    && /opt/app-root/guidellm/bin/pip install --no-cache-dir --upgrade pip \
-    && /opt/app-root/guidellm/bin/pip install --no-cache-dir guidellm \
-    && /opt/app-root/guidellm/bin/pip install --no-cache-dir -r /tmp/requirements.txt \
-    && rm -f /tmp/requirements.txt
+    && /opt/app-root/guidellm/bin/pip install --no-cache-dir --upgrade pip
+
+# Install GuideLLM based on build argument
+RUN if [ "$INSTALL_FROM_GIT" = "true" ]; then \
+        echo "Installing GuideLLM from git repository..." && \
+        /opt/app-root/guidellm/bin/pip install --no-cache-dir git+https://github.com/vllm-project/guidellm.git; \
+    else \
+        echo "Installing GuideLLM from PyPI..." && \
+        /opt/app-root/guidellm/bin/pip install --no-cache-dir guidellm; \
+    fi
+
+# Install Streamlit dependencies (excluding git+https line if installing from PyPI)
+RUN if [ "$INSTALL_FROM_GIT" = "true" ]; then \
+        /opt/app-root/guidellm/bin/pip install --no-cache-dir -r /tmp/requirements.txt; \
+    else \
+        grep -v "git+https://github.com/vllm-project/guidellm.git" /tmp/requirements.txt > /tmp/requirements-filtered.txt && \
+        /opt/app-root/guidellm/bin/pip install --no-cache-dir -r /tmp/requirements-filtered.txt; \
+    fi \
+    && rm -f /tmp/requirements.txt /tmp/requirements-filtered.txt
 
 # Set cache directory and pre-download common tokenizers to avoid runtime download issues
 ENV HF_HOME=/tmp/hf_cache \

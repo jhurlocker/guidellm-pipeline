@@ -227,6 +227,16 @@ with st.sidebar:
         except:
             st.error("Invalid JSON format")
             data_config = "prompt_tokens=512,output_tokens=128"
+    
+    # Output Format Selection
+    st.subheader("Output Format")
+    
+    output_format = st.selectbox(
+        "Output Format",
+        ["YAML", "HTML"],
+        index=0,
+        help="Choose output format. YAML: Machine-readable data format for processing. HTML: Visual report format for viewing in browser."
+    )
 
 # Main content area
 col1, col2 = st.columns([2, 1])
@@ -276,7 +286,10 @@ with col1:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_dir = Path(f"./results/{model_name}_{timestamp}")
             output_dir.mkdir(parents=True, exist_ok=True)
-            output_file = output_dir / "benchmark-results.yaml"
+            
+            # Set output file extension based on format selection
+            file_extension = "yaml" if output_format == "YAML" else "html"
+            output_file = output_dir / f"benchmark-results.{file_extension}"
             
             # Build command
             cmd = [
@@ -422,8 +435,15 @@ with col1:
                     
                     # Load and display results
                     if output_file.exists():
-                        with open(output_file, 'r') as f:
-                            results = yaml.safe_load(f)
+                        # Load results based on format
+                        if output_format == "YAML":
+                            with open(output_file, 'r') as f:
+                                try:
+                                    results = yaml.safe_load(f)
+                                except:
+                                    results = None
+                        else:  # HTML format
+                            results = None  # HTML files don't contain parseable result data
                         
                         # Store in session state with benchmark stats
                         final_stats = "\n".join(benchmark_stats) if benchmark_stats else None
@@ -434,7 +454,8 @@ with col1:
                             "config": config_display,
                             "results": results,
                             "benchmark_stats": final_stats,
-                            "output_file": str(output_file)
+                            "output_file": str(output_file),
+                            "output_format": output_format
                         }
                         st.session_state.results_history.append(result_entry)
                         
@@ -590,7 +611,8 @@ if st.session_state.results_history:
             "Model": result["model"],
             "Target": result["target"][:50] + "..." if len(result["target"]) > 50 else result["target"],
             "Rate Type": result["config"]["Rate Type"],
-            "Duration": result["config"]["Max Duration"]
+            "Duration": result["config"]["Max Duration"],
+            "Format": result.get("output_format", "YAML")
         }
         
         # Add performance metrics if available
@@ -669,14 +691,27 @@ if st.session_state.results_history:
         
         # Download button for results
         if "output_file" in result and Path(result["output_file"]).exists():
+            # Get format from result or default to YAML for backward compatibility
+            format_type = result.get("output_format", "YAML")
+            
             with open(result["output_file"], "r") as f:
-                results_yaml = f.read()
+                results_content = f.read()
+            
+            # Set appropriate label, file extension, and MIME type
+            if format_type == "HTML":
+                label = "📊 Download Results (HTML)"
+                file_extension = "html"
+                mime_type = "text/html"
+            else:  # YAML
+                label = "📥 Download Results (YAML)"
+                file_extension = "yaml"
+                mime_type = "text/yaml"
             
             st.download_button(
-                label="📥 Download Results (YAML)",
-                data=results_yaml,
-                file_name=f"benchmark-{result['timestamp']}.yaml",
-                mime="text/yaml"
+                label=label,
+                data=results_content,
+                file_name=f"benchmark-{result['timestamp']}.{file_extension}",
+                mime=mime_type
             )
 
 # Footer
