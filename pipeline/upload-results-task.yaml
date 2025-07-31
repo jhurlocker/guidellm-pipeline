@@ -6,7 +6,7 @@ metadata:
 spec:
   description: Upload guidellm benchmark results to s3 bucket
   params:
-    - default: 'https://minio-api-minio.apps.cluster-tvkt7.tvkt7.sandbox565.opentlc.com'
+    - default: 'http://minio-service.rhaiis-demo.svc.cluster.local:9000'
       description: s3 API endpoint
       name: minio-api-route
       type: string

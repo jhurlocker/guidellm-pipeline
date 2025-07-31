@@ -17,7 +17,7 @@ spec:
       description: Processor/model path
       name: processor
       type: string
-    - default: '{"type":"emulated","prompt_tokens":800,"output_tokens":128}'
+    - default: "prompt_tokens=800,output_tokens=128"
       description: Data configuration JSON
       name: data-config
       type: string
@@ -29,7 +29,7 @@ spec:
       description: Rate type for benchmark
       name: rate-type
       type: string
-    - default: '1.0'
+    - default: '1.0, 4.0, 8.0, 16.0'
       description: Rate for benchmark
       name: rate
       type: string
@@ -87,7 +87,7 @@ spec:
     - name: upload-results
       params:
         - name: minio-api-route
-          value: 'https://minio-api-minio.apps.cluster-tvkt7.tvkt7.sandbox565.opentlc.com'
+          value: 'http://minio-service.rhaiis-demo.svc.cluster.local:9000'
         - name: user
           value: minio
         - name: password

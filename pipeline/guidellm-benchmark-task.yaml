@@ -17,7 +17,7 @@ spec:
       description: Processor/model path
       name: processor
       type: string
-    - default: '{"type":"emulated","prompt_tokens":512,"output_tokens":128}'
+    - default: "prompt_tokens=800,output_tokens=128"
       description: Data configuration JSON
       name: data-config
       type: string
@@ -29,7 +29,7 @@ spec:
       description: Rate type for benchmark
       name: rate-type
       type: string
-    - default: '1.0'
+    - default: '1.0, 4.0, 8.0, 16.0'
       description: Rate for benchmark
       name: rate
       type: string
@@ -64,7 +64,6 @@ spec:
           value: $(params.api-key)
         - name: GUIDELLM__MAX_CONCURRENCY
           value: $(params.max-concurrency)
-        - name: HUGGING_FACE_HUB_TOKEN
         - name: REQUESTS_CA_BUNDLE
           value: /etc/ssl/certs/ca-bundle.crt
         - name: SSL_CERT_FILE
@@ -88,11 +87,11 @@ spec:
           --target="$(params.target)" \
           --model="$(params.model-name)" \
           --processor="$(params.processor)" \
-          --data="prompt_tokens=800,output_tokens=128" \
+          --data="$(params.data-config)" \
           --output-path="$(workspaces.shared-workspace.path)/$(params.output-filename)" \
           --rate-type="$(params.rate-type)" \
           --rate="$(params.rate)" \
-          --max-seconds="$(params.max-seconds)" > benchmark_${TIMESTAMP}_rate_$(params.rate).txt
+          --max-seconds="$(params.max-seconds)" > benchmark_${TIMESTAMP}_rate_$(params.rate-type).txt
 
         echo "Extracting and organizing benchmark results..."
 
