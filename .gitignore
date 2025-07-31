@@ -11,7 +11,7 @@ results/
 **/results/
 *.results.*
 benchmark-results.*
-*.yaml
+#*.yaml
 *.json
 
 # C extensions

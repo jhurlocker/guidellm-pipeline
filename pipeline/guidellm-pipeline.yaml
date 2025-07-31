@@ -1,0 +1,105 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: guidellm-benchmark-pipeline
+spec:
+  description: Pipeline to run guidellm benchmarks against model endpoints
+  params:
+    - default: 'http://llama32-3b.llama-serve.svc.cluster.local:8000/v1'
+      description: Target endpoint URL
+      name: target
+      type: string
+    - default: granite-8b-instruct-vllm-kserve
+      description: Model name identifier
+      name: model-name
+      type: string
+    - default: ibm-granite/granite-3.3-2b-instruct
+      description: Processor/model path
+      name: processor
+      type: string
+    - default: '{"type":"emulated","prompt_tokens":800,"output_tokens":128}'
+      description: Data configuration JSON
+      name: data-config
+      type: string
+    - default: '30'
+      description: Maximum benchmark duration in seconds
+      name: max-seconds
+      type: string
+    - default: poisson
+      description: Rate type for benchmark
+      name: rate-type
+      type: string
+    - default: '1.0'
+      description: Rate for benchmark
+      name: rate
+      type: string
+    - description: OpenAI API key for authentication
+      name: api-key
+      type: string
+    - default: '10'
+      description: Maximum concurrency for benchmark
+      name: max-concurrency
+      type: string
+    - description: Hugging Face token for accessing gated models
+      name: huggingface-token
+      type: string
+    - default: 'https://s3_API_URL'
+      description: s3 API route
+      name: minio-api-route
+      type: string
+    - default: minio
+      description: s3 username
+      name: user
+      type: string
+    - default: minio123
+      description: s3 password
+      name: password
+      type: string
+  tasks:
+    - name: benchmark
+      params:
+        - name: target
+          value: $(params.target)
+        - name: model-name
+          value: $(params.model-name)
+        - name: processor
+          value: $(params.processor)
+        - name: data-config
+          value: $(params.data-config)
+        - name: output-filename
+          value: $(params.model-name)-results.yaml
+        - name: rate-type
+          value: $(params.rate-type)
+        - name: max-seconds
+          value: $(params.max-seconds)
+        - name: api-key
+          value: $(params.api-key)
+        - name: max-concurrency
+          value: $(params.max-concurrency)
+        - name: huggingface-token
+          value: $(params.huggingface-token)
+      taskRef:
+        kind: Task
+        name: guidellm-benchmark
+      workspaces:
+        - name: shared-workspace
+          workspace: shared-workspace
+    - name: upload-results
+      params:
+        - name: minio-api-route
+          value: 'https://minio-api-minio.apps.cluster-tvkt7.tvkt7.sandbox565.opentlc.com'
+        - name: user
+          value: minio
+        - name: password
+          value: minio123
+      runAfter:
+        - benchmark
+      taskRef:
+        kind: Task
+        name: upload-guidellm-benchmark-results
+      workspaces:
+        - name: shared-workspace
+          workspace: shared-workspace
+  workspaces:
+    - description: Shared workspace for storing benchmark results
+      name: shared-workspace
