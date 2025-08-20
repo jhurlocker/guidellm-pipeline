@@ -29,11 +29,11 @@ spec:
       description: Rate type for benchmark
       name: rate-type
       type: string
-    - default: '1.0, 4.0, 8.0, 16.0'
+    - default: '4'
       description: Rate for benchmark
       name: rate
       type: string
-    - default: '1800'
+    - default: '30'
       description: Maximum benchmark duration in seconds
       name: max-seconds
       type: string
@@ -83,7 +83,7 @@ spec:
         TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
         echo "--- Starting benchmark ---"
-        guidellm benchmark \
+        COLUMNS=500 guidellm benchmark \
           --target="$(params.target)" \
           --model="$(params.model-name)" \
           --processor="$(params.processor)" \
@@ -91,7 +91,7 @@ spec:
           --output-path="$(workspaces.shared-workspace.path)/$(params.output-filename)" \
           --rate-type="$(params.rate-type)" \
           --rate="$(params.rate)" \
-          --max-seconds="$(params.max-seconds)" > benchmark_${TIMESTAMP}_rate_$(params.rate-type).txt
+          --max-seconds="$(params.max-seconds)" > benchmark_${TIMESTAMP}.txt
 
         echo "Extracting and organizing benchmark results..."
 

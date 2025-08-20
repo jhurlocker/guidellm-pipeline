@@ -5,7 +5,7 @@ metadata:
 spec:
   params:
     - name: target
-      value: 'https://granite-8b-instruct-vllm-kserve-rhaiis-demo.apps.cluster-tvkt7.tvkt7.sandbox565.opentlc.com/v1'
+      value: 'https://granite-8b-.sandbox1023.opentlc.com/v1'
     - name: model-name
       value: granite-8b-instruct-vllm-kserve
     - name: processor
@@ -21,11 +21,11 @@ spec:
     - name: api-key
       value: ''
     - name: max-concurrency
-      value: '16'
+      value: '32'
     - name: huggingface-token
       value: ''
     - name: minio-api-route
-      value: 'http://minio-service.rhaiis-demo.svc.cluster.local:9000'
+      value: 'http://minio.ic-shared-minio.svc.cluster.local:9000'
     - name: user
       value: minio
     - name: password
