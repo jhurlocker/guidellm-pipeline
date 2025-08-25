@@ -1,0 +1,33 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-create-bucket-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: mc
+        image: minio/mc
+        command:
+          - /bin/sh
+          - -c
+          - |
+            # Use a writable directory for the mc config
+            until mc --config-dir /tmp/.mc alias set myminio http://minio.ic-shared-minio.svc.cluster.local:9000 $MINIO_ROOT_USER $MINIO_ROOT_PASSWORD; do
+              echo "Waiting for MinIO service..."
+              sleep 5
+            done
+            mc --config-dir /tmp/.mc mb myminio/guidellm-benchmark
+        env:
+          - name: MINIO_ROOT_USER
+            valueFrom:
+              secretKeyRef:
+                name: minio-secret
+                key: minio_root_user
+          - name: MINIO_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: minio-secret
+                key: minio_root_password
+      restartPolicy: OnFailure
+  backoffLimit: 4

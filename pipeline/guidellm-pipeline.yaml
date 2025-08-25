@@ -25,7 +25,7 @@ spec:
       description: Maximum benchmark duration in seconds
       name: max-seconds
       type: string
-    - default: poisson
+    - default: 'poisson'
       description: Rate type for benchmark
       name: rate-type
       type: string
@@ -42,18 +42,6 @@ spec:
       type: string
     - description: Hugging Face token for accessing gated models
       name: huggingface-token
-      type: string
-    - default: 'https://s3_API_URL'
-      description: s3 API route
-      name: minio-api-route
-      type: string
-    - default: minio
-      description: s3 username
-      name: user
-      type: string
-    - default: minio123
-      description: s3 password
-      name: password
       type: string
   tasks:
     - name: benchmark
@@ -72,6 +60,8 @@ spec:
           value: $(params.rate)
         - name: rate-type
           value: $(params.rate-type)
+        - name: rate
+          value: $(params.rate)
         - name: max-seconds
           value: $(params.max-seconds)
         - name: api-key

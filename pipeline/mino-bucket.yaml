@@ -1,0 +1,88 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-create-guidellm-bucket-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: create-guidellm-bucket
+        image: registry.access.redhat.com/ubi9/python-311
+        command: ["python3", "-c"]
+        args:
+          - |
+            #!/usr/bin/env python3
+
+            import os
+
+            # Install dependencies quietly
+            os.system('pip install -q boto3')
+
+            import boto3
+            from botocore.client import Config
+            from botocore.exceptions import ClientError
+
+            # --- Configuration ---
+            # Replace these with your MinIO server's details
+            
+            MINIO_ENDPOINT = 'minio.ic-shared-minio.svc.cluster.local:9000'  # e.g., 'localhost:9000' or 'minio.example.com'
+            MINIO_ACCESS_KEY = 'minio'
+            MINIO_SECRET_KEY = 'minio123'
+            BUCKET_NAME = 'guidellm-benchmark'  # The name for the new bucket
+
+            # --- Main Script ---
+
+            def create_minio_bucket():
+                """
+                Connects to a MinIO instance and creates a new S3 bucket.
+                """
+                print(f"Attempting to connect to MinIO at: {MINIO_ENDPOINT}")
+
+                # 1. Create an S3 client configured for MinIO
+                #    - endpoint_url: Points the client to your MinIO server instead of AWS.
+                #    - aws_access_key_id & aws_secret_access_key: Your MinIO credentials.
+                #    - config: Specifies the S3 signature version required by MinIO.
+                try:
+                    s3_client = boto3.client(
+                        's3',
+                        endpoint_url=f'http://{MINIO_ENDPOINT}',
+                        aws_access_key_id=MINIO_ACCESS_KEY,
+                        aws_secret_access_key=MINIO_SECRET_KEY,
+                        config=Config(signature_version='s3v4')
+                    )
+                    print("Successfully created S3 client.")
+
+                except Exception as e:
+                    print(f"Error creating S3 client: {e}")
+                    return
+
+                # 2. Create the bucket
+                #    A try/except block is used to gracefully handle cases where the bucket
+                #    might already exist or other API errors occur.
+                try:
+                    print(f"Attempting to create bucket: '{BUCKET_NAME}'...")
+                    
+                    # For MinIO, you don't need to specify a LocationConstraint like you
+                    # would for some AWS regions.
+                    s3_client.create_bucket(Bucket=BUCKET_NAME)
+                    
+                    print(f" Success! Bucket '{BUCKET_NAME}' created.")
+
+                except ClientError as e:
+                    # Check for the specific error code when a bucket already exists
+                    if e.response['Error']['Code'] == 'BucketAlreadyOwnedByYou':
+                        print(f"  Bucket '{BUCKET_NAME}' already exists and is owned by you.")
+                    else:
+                        # Handle other potential AWS/MinIO errors
+                        print(f" An unexpected error occurred: {e}")
+                except Exception as e:
+                    print(f" An unexpected system error occurred: {e}")
+
+
+            if __name__ == "__main__":
+                # Ensure you have installed boto3:
+                #pip install boto3
+                
+                create_minio_bucket()
+      restartPolicy: OnFailure
+  backoffLimit: 4
