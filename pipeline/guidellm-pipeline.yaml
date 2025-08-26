@@ -56,8 +56,6 @@ spec:
           value: $(params.data-config)
         - name: output-filename
           value: $(params.model-name)-results.yaml
-        - name: rate
-          value: $(params.rate)
         - name: rate-type
           value: $(params.rate-type)
         - name: rate
