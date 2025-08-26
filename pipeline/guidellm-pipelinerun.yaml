@@ -5,9 +5,9 @@ metadata:
 spec:
   params:
     - name: target
-      value: 'https://granite-8b-.sandbox1023.opentlc.com/v1'
+      value: 'https://granite-8b-vllm.apps.ocp.t4jx7.sandbox2175.opentlc.com/v1'
     - name: model-name
-      value: granite-8b-instruct-vllm-kserve
+      value: granite-8b
     - name: processor
       value: ibm-granite/granite-3.3-2b-instruct
     - name: data-config
